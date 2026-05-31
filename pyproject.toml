@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thesis-federated-sensor-fusion"
+version = "0.1.0"
+description = "Federated Learning for Audio-Visual Sensor Fusion"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Adnan Anwar Rajput"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy>=1.21.0",
+    "pyyaml>=6.0",
+    "paho-mqtt>=1.6.0",
+    "psutil>=5.9.0",
+]
+
+[project.optional-dependencies]
+edge = [
+    "librosa>=0.10.0",
+    "sounddevice>=0.4.6",
+    "ultralytics>=8.0.0",
+    "flwr>=1.0.0",
+]
+server = [
+    "tensorflow>=2.10.0",
+    "flwr>=1.0.0",
+    "librosa>=0.10.0",
+    "matplotlib>=3.7.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+thesis-edge = "src.edge.main:main"
+thesis-server = "src.server.main:main"
+thesis-flower = "src.server.flower_server:main"
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.venv
+  | venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+skip_gitignore = true
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --cov=src --cov-report=term-missing"

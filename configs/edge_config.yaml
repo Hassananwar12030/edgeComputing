@@ -1,0 +1,142 @@
+# Edge Node Configuration
+# =======================
+# Configuration for Raspberry Pi edge devices.
+# Copy this file and modify for each node.
+
+# Node identification
+node:
+  id: "A"  # Unique node identifier (e.g., "A", "B")
+  name: "Edge Node Alpha"
+
+# Server connection
+server:
+  ip: "192.168.1.100"  # Server IP address
+  mqtt_port: 1883      # MQTT broker port
+  flower_port: 8080    # Flower server port (Strategy C)
+  use_tls: false       # Enable TLS encryption
+  ca_cert: null        # Path to CA certificate
+  client_cert: null    # Path to client certificate
+  client_key: null     # Path to client key
+
+# Camera settings
+camera:
+  enabled: true
+  width: 640
+  height: 480
+  fps: 10
+  format: "RGB888"
+  # Preview settings (for debugging)
+  preview_enabled: false
+  preview_width: 320
+  preview_height: 240
+
+# Microphone settings
+microphone:
+  enabled: true
+  sample_rate: 16000   # 16 kHz
+  chunk_duration: 0.5  # 500ms audio chunks
+  device: null         # Audio device (null for default)
+  channels: 1          # Mono
+
+# Audio processing (STFT)
+audio_processing:
+  n_fft: 512
+  hop_length: 160      # 10ms at 16kHz
+  window_length: 400   # 25ms at 16kHz
+  n_mels: 128
+  f_min: 0
+  f_max: 8000          # Nyquist frequency
+  normalize: true
+
+# Vision processing (YOLOv8)
+vision:
+  model_path: "models/yolov8n.tflite"  # Use TFLite for Pi
+  confidence_threshold: 0.5
+  classes_of_interest:
+    - "person"
+    - "car"
+    - "motorcycle"
+    - "bicycle"
+    - "bus"
+    - "truck"
+    - "dog"
+    - "cat"
+    - "bird"
+  # Temporal consistency
+  temporal_filter:
+    enabled: true
+    min_frames: 3
+    max_gap: 2
+
+# Strategy selection
+strategy:
+  type: "federated"  # "centralized", "hybrid", or "federated"
+
+  # Buffer settings (applies to all strategies)
+  buffer_size: 500   # Samples before training/upload
+
+  # Centralized strategy (A) specific
+  centralized:
+    compression: true
+
+  # Hybrid strategy (B) specific
+  hybrid:
+    compression: true
+    use_float16: true
+
+  # Federated strategy (C) specific
+  federated:
+    local_epochs: 3
+    batch_size: 8
+    learning_rate: 0.001
+    gradient_accumulation: 4
+
+# Local training (Strategy C only)
+training:
+  model_path: "models/audio_cnn.h5"
+  checkpoint_dir: "checkpoints"
+  save_checkpoints: true
+  checkpoint_frequency: 5  # Every N training rounds
+
+# Data storage
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  buffer_dir: "data/buffer"
+  max_disk_usage_gb: 5
+  cleanup_old_data: true
+  retention_days: 7
+
+# Metrics collection
+metrics:
+  enabled: true
+  report_interval: 60     # Seconds between reports
+  power_monitor:
+    enabled: true
+    i2c_address: 0x40
+    sample_interval: 0.1
+  bandwidth_tracking: true
+  latency_tracking: true
+  output_dir: "logs/metrics"
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "logs/edge_{node_id}.log"
+  max_size_mb: 10
+  backup_count: 5
+  console: true
+
+# System settings
+system:
+  # Memory management
+  max_memory_percent: 70  # Trigger cleanup above this
+  swap_enabled: true
+
+  # Power management
+  low_power_mode: false
+  idle_timeout: 300       # Seconds before entering low power
+
+  # Watchdog
+  watchdog_enabled: true
+  watchdog_timeout: 60

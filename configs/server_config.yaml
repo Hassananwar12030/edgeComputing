@@ -1,0 +1,128 @@
+# Server Configuration
+# ====================
+# Configuration for the central server (laptop/cloud).
+
+# Server settings
+server:
+  host: "0.0.0.0"     # Bind to all interfaces
+  mode: "federated"    # "centralized" or "federated"
+
+# MQTT Broker settings
+mqtt:
+  host: "0.0.0.0"
+  port: 1883
+  username: null
+  password: null
+  use_tls: false
+  ca_cert: null
+
+# Flower server settings (Strategy C)
+flower:
+  port: 8080
+  num_rounds: 10
+  min_clients: 2
+  fraction_fit: 1.0      # Fraction of clients for training
+  fraction_evaluate: 1.0  # Fraction of clients for evaluation
+
+  # Client configuration sent each round
+  client_config:
+    local_epochs: 3
+    batch_size: 8
+    learning_rate: 0.001
+
+# Centralized training settings (Strategy A/B)
+centralized_training:
+  batch_size: 32
+  epochs_per_train: 5
+  train_trigger_samples: 1000
+  buffer_size: 10000
+
+  # Learning rate schedule
+  learning_rate:
+    initial: 0.001
+    decay_steps: 1000
+    decay_rate: 0.96
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 5
+    min_delta: 0.001
+
+# Model settings
+model:
+  architecture: "fusion"  # "audio_only" or "fusion"
+  input_shape:
+    audio: [49, 128, 1]
+    vision: [224, 224, 3]
+  num_classes: 10
+
+  # Fusion model specific
+  fusion:
+    vision_trainable: false
+    audio_feature_dim: 128
+    vision_feature_dim: 256
+    dropout_rate: 0.3
+
+  # Paths
+  initial_weights: null  # Path to initial weights
+  checkpoint_dir: "models/checkpoints"
+  final_model_path: "models/final_model.h5"
+
+# Aggregation settings (Strategy C)
+aggregation:
+  algorithm: "fedavg"  # "fedavg", "fedprox", "scaffold"
+
+  # FedAvg specific
+  fedavg:
+    weighting: "samples"  # "samples", "equal", "performance"
+
+  # FedProx specific (not yet implemented)
+  fedprox:
+    mu: 0.1
+
+# Data processing
+data_processing:
+  # For Strategy A: raw audio → spectrogram
+  stft:
+    sample_rate: 16000
+    n_fft: 512
+    hop_length: 160
+    n_mels: 128
+
+# Experiment settings
+experiment:
+  name: "thesis_experiment"
+  output_dir: "experiments"
+
+  # Metrics to track
+  metrics:
+    - "accuracy"
+    - "loss"
+    - "bandwidth"
+    - "latency"
+    - "power"
+
+  # Visualization
+  visualization:
+    enabled: true
+    plot_interval: 1  # Every N rounds
+
+# Logging
+logging:
+  level: "INFO"
+  file: "logs/server.log"
+  max_size_mb: 50
+  backup_count: 10
+  console: true
+
+  # TensorBoard
+  tensorboard:
+    enabled: true
+    log_dir: "logs/tensorboard"
+
+# Resource limits
+resources:
+  max_memory_gb: 8
+  max_cpu_percent: 80
+  gpu_memory_fraction: 0.8  # If using GPU

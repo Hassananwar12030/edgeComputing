@@ -1,0 +1,213 @@
+# Strategy Configuration
+# ======================
+# Detailed configuration for each learning strategy.
+
+# Strategy A: Centralized
+# -----------------------
+# Raw audio uploaded to server for full processing
+centralized:
+  name: "Strategy A - Centralized"
+  description: "Edge sends raw audio, server does STFT + training"
+
+  # Privacy level: LOW (raw audio transmitted)
+  privacy_score: 1
+
+  # Expected performance
+  expected_bandwidth_per_batch_mb: 4.0
+  expected_edge_compute: "low"
+  expected_server_compute: "high"
+
+  # Edge configuration
+  edge:
+    # What runs on edge
+    yolo_inference: true
+    stft_processing: false
+    local_training: false
+
+    # Data to upload
+    upload:
+      - "raw_audio"
+      - "labels"
+      - "timestamps"
+      - "confidence_scores"
+
+    # Compression
+    compression:
+      enabled: true
+      algorithm: "zlib"
+      level: 6
+
+    # Buffer settings
+    buffer:
+      size: 500
+      overflow_to_disk: true
+      max_disk_mb: 100
+
+  # Server configuration
+  server:
+    # What runs on server
+    stft_processing: true
+    model_training: true
+
+    # Training triggers
+    training:
+      trigger: "samples"  # "samples" or "time"
+      trigger_samples: 1000
+      trigger_time_minutes: 30
+
+    # Model broadcast
+    broadcast:
+      trigger: "training"  # After each training
+      retain: true         # MQTT retain flag
+
+# Strategy B: Hybrid STFT
+# -----------------------
+# Spectrograms uploaded to server
+hybrid:
+  name: "Strategy B - Hybrid STFT"
+  description: "Edge does STFT, server does training"
+
+  # Privacy level: MEDIUM (processed features transmitted)
+  privacy_score: 2
+
+  # Expected performance
+  expected_bandwidth_per_batch_mb: 3.0
+  expected_edge_compute: "medium"
+  expected_server_compute: "medium"
+
+  # Edge configuration
+  edge:
+    yolo_inference: true
+    stft_processing: true
+    local_training: false
+
+    upload:
+      - "spectrograms"
+      - "labels"
+      - "timestamps"
+
+    # Use float16 for smaller payload
+    use_float16: true
+
+    compression:
+      enabled: true
+      algorithm: "zlib"
+      level: 6
+
+    buffer:
+      size: 500
+      overflow_to_disk: true
+
+  # Server configuration
+  server:
+    stft_processing: false
+    model_training: true
+
+    training:
+      trigger: "samples"
+      trigger_samples: 1000
+
+    broadcast:
+      trigger: "training"
+      retain: true
+
+# Strategy C: Federated
+# ---------------------
+# Local training, only weights uploaded
+federated:
+  name: "Strategy C - Federated"
+  description: "Edge does full training, only weights shared"
+
+  # Privacy level: HIGH (data never leaves device)
+  privacy_score: 3
+
+  # Expected performance
+  expected_bandwidth_per_round_mb: 2.0
+  expected_edge_compute: "high"
+  expected_server_compute: "low"
+
+  # Edge configuration
+  edge:
+    yolo_inference: true
+    stft_processing: true
+    local_training: true
+
+    upload:
+      - "model_weights"
+      - "training_metrics"
+
+    # Local training settings
+    local_training:
+      epochs: 3
+      batch_size: 8
+      learning_rate: 0.001
+
+      # Gradient accumulation for memory efficiency
+      gradient_accumulation_steps: 4
+
+      # Validation split
+      validation_split: 0.1
+
+    buffer:
+      size: 500
+      clear_after_training: true
+
+    # Weight compression
+    weight_compression:
+      enabled: true
+      quantization: "float16"  # "float16" or "int8"
+
+  # Server configuration
+  server:
+    stft_processing: false
+    model_training: false
+    aggregation: true
+
+    # Flower settings
+    flower:
+      num_rounds: 10
+      min_clients: 2
+
+      # Aggregation
+      aggregation_algorithm: "fedavg"
+
+      # Client selection
+      fraction_fit: 1.0
+      fraction_evaluate: 0.5
+
+    broadcast:
+      trigger: "round"  # After each FL round
+      retain: true
+
+# Comparison settings
+comparison:
+  # Metrics to compare
+  metrics:
+    - name: "accuracy"
+      higher_is_better: true
+    - name: "bandwidth_mb"
+      higher_is_better: false
+    - name: "latency_ms"
+      higher_is_better: false
+    - name: "power_wh"
+      higher_is_better: false
+    - name: "privacy_score"
+      higher_is_better: true
+
+  # Test scenarios
+  scenarios:
+    - name: "baseline"
+      duration_hours: 1
+      description: "Normal operation"
+
+    - name: "high_activity"
+      duration_hours: 1
+      description: "Many objects detected"
+
+    - name: "model_freshness"
+      duration_hours: 2
+      description: "New object introduced"
+
+    - name: "non_iid"
+      duration_hours: 1
+      description: "Different data distributions"
