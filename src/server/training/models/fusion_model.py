@@ -10,7 +10,7 @@ Architecture:
         Output: 256-dim feature vector
 
     Audio Branch: Custom CNN (trained from scratch)
-        Input: (49, 128, 1) mel-spectrogram
+        Input: (51, 128, 1) mel-spectrogram
         Output: 128-dim feature vector
 
     Fusion Head:
@@ -88,7 +88,7 @@ def FusionModel(
 
     # ============ Audio Branch ============
     # Input: Mel-spectrogram
-    audio_input = layers.Input(shape=(49, 128, 1), name='audio_input')
+    audio_input = layers.Input(shape=(51, 128, 1), name='audio_input')
 
     # Audio CNN
     x = layers.Conv2D(32, (3, 3), padding='same')(audio_input)
@@ -164,7 +164,7 @@ def AudioOnlyModel(num_classes: int = 10, dropout_rate: float = 0.3):
     if not TF_AVAILABLE:
         raise RuntimeError("TensorFlow not available")
 
-    audio_input = layers.Input(shape=(49, 128, 1), name='audio_input')
+    audio_input = layers.Input(shape=(51, 128, 1), name='audio_input')
 
     x = layers.Conv2D(32, (3, 3), padding='same')(audio_input)
     x = layers.BatchNormalization()(x)

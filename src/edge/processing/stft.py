@@ -16,9 +16,12 @@ Processing parameters (from research standards):
 - FFT size: 512 (next power of 2 after window)
 - Mel bins: 128 (standard for audio classification)
 
-For 500ms audio (8000 samples):
-- Number of frames = (8000 - 400) / 160 + 1 = 49 frames
-- Output shape: (49, 128) or (49, 128, 1) with channel
+For 500ms audio (8000 samples) with librosa default (`center=True`):
+- librosa pads so frame i is *centered* at sample i*hop_length, adding edge
+  frames → 51 frames total (this is the audio-ML convention)
+- Output shape: (51, 128) or (51, 128, 1) with channel
+- Strict windowing without padding would give 49 frames (8000-400)/160+1 — see
+  the numpy fallback, which uses that convention
 
 Why mel-spectrograms?
 1. Compact representation (8000 samples → 49×128 = 6272 values)
@@ -29,7 +32,7 @@ Why mel-spectrograms?
 Usage:
     processor = STFTProcessor(sample_rate=16000, n_mels=128)
     audio = np.array([...])  # (8000,) int16
-    spectrogram = processor.process(audio)  # (49, 128)
+    spectrogram = processor.process(audio)  # (51, 128)
 """
 
 import logging

@@ -133,8 +133,8 @@ class HybridStrategy(ILearningStrategy):
 
     def _mock_spectrogram(self) -> np.ndarray:
         """Generate mock spectrogram for development."""
-        # Shape: (n_frames, n_mels) = (49, 128)
-        return np.random.rand(49, 128).astype(np.float32)
+        # Shape: (n_frames, n_mels) = (51, 128)
+        return np.random.rand(51, 128).astype(np.float32)
 
     def execute(self, samples: List[Dict]) -> bool:
         """

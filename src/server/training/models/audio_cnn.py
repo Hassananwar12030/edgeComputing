@@ -4,7 +4,7 @@ Audio CNN Model
 
 CNN architecture for mel-spectrogram classification.
 
-Input: Mel-spectrogram (49, 128, 1)
+Input: Mel-spectrogram (51, 128, 1)
     - 49 time frames (500ms audio)
     - 128 mel frequency bins
     - 1 channel
@@ -32,7 +32,7 @@ except ImportError:
 
 
 def AudioCNN(
-    input_shape: Tuple[int, int, int] = (49, 128, 1),
+    input_shape: Tuple[int, int, int] = (51, 128, 1),
     num_classes: int = 10,
     dropout_rate: float = 0.3
 ):
@@ -90,7 +90,7 @@ def AudioCNN(
 
 
 def AudioCNNFeatureExtractor(
-    input_shape: Tuple[int, int, int] = (49, 128, 1),
+    input_shape: Tuple[int, int, int] = (51, 128, 1),
     output_dim: int = 128
 ):
     """

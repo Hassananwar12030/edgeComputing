@@ -36,7 +36,8 @@ Usage:
     python -m src.server.main --strategy centralized
 """
 
-from .flower_server import FlowerServer
-from .main import Server
-
-__all__ = ["FlowerServer", "Server"]
+# Submodules are NOT eagerly imported — Flower / TF dependencies should only
+# load when the user actually reaches for those features. Import explicitly:
+#     from src.server.flower_server import FlowerServer
+#     from src.server.main import Server
+__all__ = []

@@ -118,15 +118,18 @@ Total:            ~2M parameters
 
 Check `docs/IMPLEMENTATION_STATUS.md` for current progress.
 
-### What's Done
-- [x] Project structure
-- [x] Documentation
-- [ ] Sensor integration (TODO)
-- [ ] STFT pipeline (TODO)
-- [ ] YOLOv8 integration (TODO)
-- [ ] Strategy implementations (TODO)
-- [ ] Flower integration (TODO)
-- [ ] Evaluation framework (TODO)
+### What's Done (bootstrap phase complete, ~30%)
+- [x] Project structure + venv (Python 3.13, TF 2.21, librosa, ultralytics)
+- [x] YOLOv8 labeler verified — ~32 ms / image, 80% precision on VGGSound thumbnails
+- [x] STFT pipeline verified end-to-end on UrbanSound8K → `(51, 128)` mel-spectrograms
+- [x] AudioCNN trained on UrbanSound8K — **68.6% test accuracy** (fold 10 holdout)
+- [x] FusionModel architecture verified (1.33M params, MobileNetV3 + audio CNN)
+- [ ] Sensor integration on Pi (DEFERRED — no hardware yet)
+- [ ] Strategy A/B/C implementations (NEXT)
+- [ ] MQTT + Flower comm layer
+- [ ] Evaluation experiments (model freshness, non-IID)
+
+**See `docs/IMPLEMENTATION_STATUS.md` for the full plan.**
 
 ---
 

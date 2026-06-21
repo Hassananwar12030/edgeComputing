@@ -19,7 +19,7 @@ STFT_WINDOW_LENGTH = 400   # 25ms at 16kHz
 STFT_N_MELS = 128
 
 # Spectrogram shape
-SPECTROGRAM_SHAPE = (49, 128, 1)  # (time, freq, channels)
+SPECTROGRAM_SHAPE = (51, 128, 1)  # (time, freq, channels)
 
 # ===================
 # Vision Processing

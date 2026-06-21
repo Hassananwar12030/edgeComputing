@@ -84,7 +84,12 @@ class VisionProcessor:
         """
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
-        self.classes_of_interest = classes_of_interest or self.DEFAULT_CLASSES
+        # `None` means "accept all classes" (docstring contract). The `or` pattern
+        # would clobber that and apply DEFAULT_CLASSES instead.
+        if classes_of_interest is None:
+            self.classes_of_interest = None
+        else:
+            self.classes_of_interest = classes_of_interest
         self.device = device
         self.img_size = img_size
 
@@ -153,8 +158,8 @@ class VisionProcessor:
                 confidence = float(box.conf[0])
                 bbox = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
 
-                # Filter by classes of interest
-                if class_name in self.classes_of_interest:
+                # Filter by classes of interest (None = accept all)
+                if self.classes_of_interest is None or class_name in self.classes_of_interest:
                     detections.append({
                         'class': class_name,
                         'confidence': confidence,
@@ -168,16 +173,19 @@ class VisionProcessor:
         """
         Generate mock detections for development.
 
-        Returns random detections from classes of interest.
+        Returns random detections from classes of interest (or DEFAULT_CLASSES
+        when no filter is set, since mocks need a finite class pool to sample from).
         """
         import random
+
+        pool = self.classes_of_interest if self.classes_of_interest is not None else self.DEFAULT_CLASSES
 
         # Randomly return 0-2 detections
         n_detections = random.randint(0, 2)
         detections = []
 
         for _ in range(n_detections):
-            class_name = random.choice(self.classes_of_interest)
+            class_name = random.choice(pool)
             detections.append({
                 'class': class_name,
                 'confidence': random.uniform(0.5, 0.95),
@@ -187,7 +195,7 @@ class VisionProcessor:
                     random.randint(320, 640),
                     random.randint(240, 480)
                 ],
-                'class_id': self.classes_of_interest.index(class_name)
+                'class_id': pool.index(class_name)
             })
 
         return detections

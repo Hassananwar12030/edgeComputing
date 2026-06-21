@@ -58,7 +58,7 @@ class LocalTrainer:
         self,
         model=None,
         model_path: Optional[str] = None,
-        input_shape: Tuple[int, ...] = (49, 128, 1),
+        input_shape: Tuple[int, ...] = (51, 128, 1),
         num_classes: int = 10,
         batch_size: int = 8,
         accumulation_steps: int = 4,
@@ -130,7 +130,7 @@ class LocalTrainer:
         Build the audio CNN model for spectrograms.
 
         Architecture:
-        - Input: (49, 128, 1) mel-spectrogram
+        - Input: (51, 128, 1) mel-spectrogram
         - 3x Conv2D + BatchNorm + MaxPool blocks
         - Global Average Pooling
         - Dense(128) + Dropout

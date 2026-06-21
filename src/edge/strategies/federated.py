@@ -114,7 +114,7 @@ class FederatedStrategy(ILearningStrategy):
         if self.stft_processor:
             spectrogram = self.stft_processor.process(sample['audio'])
         else:
-            spectrogram = np.random.rand(49, 128).astype(np.float32)
+            spectrogram = np.random.rand(51, 128).astype(np.float32)
 
         prepared = {
             'spectrogram': spectrogram,

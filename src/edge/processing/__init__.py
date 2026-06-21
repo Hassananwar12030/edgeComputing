@@ -8,7 +8,7 @@ This module handles all signal processing on the edge device:
 - Feature extraction for the fusion model
 
 The processing pipeline:
-    Audio chunk (16kHz, 500ms) → STFT → Mel-spectrogram (49, 128)
+    Audio chunk (16kHz, 500ms) → STFT → Mel-spectrogram (51, 128)
     Camera frame (640x480) → YOLOv8 → Labels + Bounding boxes
 
 Classes:

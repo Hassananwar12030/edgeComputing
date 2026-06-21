@@ -107,7 +107,7 @@ class CentralizedTrainer:
         """Build the fusion model for training."""
         # Audio CNN (same as edge model)
         model = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(49, 128, 1)),
+            tf.keras.layers.Input(shape=(51, 128, 1)),
 
             # Block 1
             tf.keras.layers.Conv2D(32, (3, 3), padding='same'),
