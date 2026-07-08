@@ -5,7 +5,7 @@ Audio CNN Model
 CNN architecture for mel-spectrogram classification.
 
 Input: Mel-spectrogram (51, 128, 1)
-    - 49 time frames (500ms audio)
+    - 51 time frames (500ms audio @ 16 kHz, librosa center=True)
     - 128 mel frequency bins
     - 1 channel
 
@@ -14,7 +14,8 @@ Architecture:
     Global Average Pooling
     Dense layers with dropout
 
-Total parameters: ~500K (fits on Raspberry Pi)
+Total parameters: 111,370 (small enough to train on Raspberry Pi).
+Bootstrap accuracy: 68.6% on UrbanSound8K fold 10 (see scripts/train_audio_cnn.py).
 """
 
 import logging

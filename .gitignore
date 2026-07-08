@@ -74,20 +74,25 @@ logs/
 data/raw/
 data/processed/
 data/buffer/
-data/urbansound8k/                 # 7+ GB dataset — re-downloadable via scripts/download_urbansound8k.py
-data/vggsound/thumbnails/          # regeneratable via scripts/fetch_vggsound_thumbnails.py
-data/vggsound/manifest.json        # regeneratable
-data/vggsound/label_noise_results.json  # regeneratable
+# 7+ GB dataset — re-downloadable via scripts/download_urbansound8k.py
+data/urbansound8k/
+# regeneratable via scripts/fetch_vggsound_thumbnails.py
+data/vggsound/thumbnails/
+data/vggsound/manifest.json
+data/vggsound/label_noise_results.json
 models/*.h5
 models/*.tflite
 models/*.pt
-models/*.keras                     # trained Keras models — reproducible via training scripts
+# trained Keras models — reproducible via training scripts
+models/*.keras
 models/checkpoints/
 experiments/
-*.npz                              # numpy archive caches — reproducible
+# numpy archive caches — reproducible
+*.npz
 *.csv
 *.json.bak
-additional docs/                   # personal thesis reference docs
+# personal thesis reference docs
+additional docs/
 
 # Secrets
 *.pem

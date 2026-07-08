@@ -11,7 +11,7 @@ Models:
 
 The fusion model architecture:
 
-    Vision Input (224×224×3)      Audio Input (49×128×1)
+    Vision Input (224×224×3)      Audio Input (51×128×1)
            │                              │
            ▼                              ▼
     ┌─────────────────┐           ┌─────────────────┐

@@ -19,12 +19,12 @@ This is the privacy-preserving strategy with:
 
 Data flow:
     Edge: capture() → YOLOv8 label → STFT → buffer → local train
-    Upload: model weights only (~2MB)
+    Upload: trainable weights only (~1.5 MB; ~400 KB quantized)
     Server: receive weights → FedAvg → broadcast global model
 
 Bandwidth estimate:
-    Model size: ~2M parameters × 4 bytes = 8 MB
-    With quantization: ~2 MB per round
+    Trainable params: ~390K × 4 bytes = ~1.5 MB per round (FusionModel; vision backbone frozen)
+    With INT8 quantization: ~400 KB per round
 
 This strategy uses Flower (flwr) for federated learning coordination.
 """

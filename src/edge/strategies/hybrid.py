@@ -22,8 +22,8 @@ Data flow:
     Server: receive → train → broadcast model
 
 Bandwidth estimate:
-    Per sample: 49 × 128 × 4 bytes (float32) = 25 KB
-    Per batch: 25 KB × 500 = 12.5 MB (uncompressed)
+    Per sample: 51 × 128 × 4 bytes (float32) = 26 KB
+    Per batch: 26 KB × 500 = 13 MB (uncompressed)
     With compression + float16: ~3 MB
 """
 

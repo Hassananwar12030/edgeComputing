@@ -206,12 +206,17 @@ class MQTTClient:
             f"Received message on {topic}: {len(payload)} bytes"
         )
 
-        # Call registered callback
-        if topic in self._callbacks:
-            try:
-                self._callbacks[topic](topic, payload)
-            except Exception as e:
-                self.logger.error(f"Callback error: {e}")
+        # Find matching callback. Support MQTT wildcards (+ and #) by
+        # delegating to paho's topic_matches_sub. A concrete topic like
+        # "thesis/edge/A/data" must match a subscription like
+        # "thesis/edge/+/data".
+        for sub_topic, callback in self._callbacks.items():
+            if sub_topic == topic or mqtt.topic_matches_sub(sub_topic, topic):
+                try:
+                    callback(topic, payload)
+                except Exception as e:
+                    self.logger.error(f"Callback error: {e}")
+                return
 
     def _start_reconnect(self) -> None:
         """Start reconnection thread."""

@@ -160,28 +160,40 @@ class CentralizedStrategy(ILearningStrategy):
 
     def _serialize_batch(self, samples: List[Dict]) -> bytes:
         """
-        Serialize a batch of samples to bytes.
+        Serialize a batch of samples to bytes using numpy binary encoding.
 
-        Converts numpy arrays to lists for JSON serialization.
+        Raw int16 audio is stacked into a single (N, samples) array and
+        written via np.savez_compressed. Metadata (labels, timestamps) is
+        a small JSON blob alongside. This is 2-3x smaller than the naive
+        json.dumps(audio.tolist()) approach because JSON encoding of an
+        int list is ~5 chars per int (~10 bytes) whereas int16 binary is
+        2 bytes.
         """
-        # Convert numpy arrays to lists
-        serializable = []
+        import io
+
+        audio_arrays = []
+        metadata = []
         for sample in samples:
-            s = sample.copy()
-            if isinstance(s['audio'], np.ndarray):
-                s['audio'] = s['audio'].tolist()
-            serializable.append(s)
+            audio = sample['audio']
+            if not isinstance(audio, np.ndarray):
+                audio = np.asarray(audio, dtype=np.int16)
+            audio_arrays.append(audio)
+            metadata.append({
+                'label': sample['label'],
+                'timestamp': sample['timestamp'],
+                'confidence': sample.get('confidence', 1.0),
+                'node_id': sample.get('node_id', self.node_id),
+            })
 
-        # Create batch payload
-        batch = {
-            'node_id': self.node_id,
-            'strategy': self.name,
-            'timestamp': time.time(),
-            'num_samples': len(samples),
-            'samples': serializable
-        }
+        audio_batch = np.stack(audio_arrays)  # (N, 8000) int16
 
-        return json.dumps(batch).encode('utf-8')
+        buffer = io.BytesIO()
+        np.savez_compressed(
+            buffer,
+            audio=audio_batch,
+            metadata=json.dumps(metadata),
+        )
+        return buffer.getvalue()
 
     def on_model_update(self, model_data: bytes) -> bool:
         """

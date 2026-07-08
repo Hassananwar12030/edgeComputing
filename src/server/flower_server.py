@@ -24,6 +24,8 @@ Usage:
     python -m src.server.flower_server --rounds 10 --min-clients 2
 """
 
+from __future__ import annotations
+
 import logging
 import argparse
 from typing import Dict, List, Tuple, Optional, Any

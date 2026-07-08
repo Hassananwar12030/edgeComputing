@@ -23,7 +23,7 @@ Strategy C (Federated):
     - Upload: Model weights only to server
     - Server: FedAvg aggregation only
     - Privacy: HIGH (data never leaves device)
-    - Bandwidth: LOW (~2MB per round)
+    - Bandwidth: LOW (~1.5 MB raw / ~400 KB quantized per round)
 
 All strategies implement the ILearningStrategy interface.
 

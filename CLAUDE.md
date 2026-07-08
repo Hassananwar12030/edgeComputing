@@ -72,14 +72,14 @@ models/             # Pre-trained weights
 - Window: 25ms, Hop: 10ms
 - FFT size: 512
 - Mel bins: 128
-- Output: (49, 128, 1) spectrogram for 500ms audio
+- Output: (51, 128, 1) spectrogram for 500ms audio
 
 ### Fusion Model Architecture
 ```
-Vision Branch:    MobileNetV3-Small (pre-trained) → 256-dim
+Vision Branch:    MobileNetV3-Small (pre-trained, frozen) → 256-dim
 Audio Branch:     3× Conv2D + BatchNorm + MaxPool → 128-dim
 Fusion Head:      Concat(384) → Dense(256) → Dropout → Dense(N_classes)
-Total:            ~2M parameters
+Total:            ~1.33M parameters (~390K trainable)
 ```
 
 ### Communication

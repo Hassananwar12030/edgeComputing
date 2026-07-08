@@ -16,10 +16,10 @@ Architecture:
     Fusion Head:
         Concatenate → Dense(256) → Dropout → Dense(num_classes)
 
-Total: ~2M parameters
-    - MobileNetV3: ~1.5M (frozen)
-    - Audio CNN: ~500K (trainable)
-    - Fusion head: ~100K (trainable)
+Total: ~1.33M parameters (~390K trainable)
+    - MobileNetV3-Small: ~940K (frozen, ImageNet weights)
+    - Audio CNN: ~111K (trainable)
+    - Fusion head: ~280K (trainable)
 
 Modality Dropout:
     During training, randomly drop audio or vision features

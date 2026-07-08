@@ -24,7 +24,7 @@ For 500ms audio (8000 samples) with librosa default (`center=True`):
   the numpy fallback, which uses that convention
 
 Why mel-spectrograms?
-1. Compact representation (8000 samples → 49×128 = 6272 values)
+1. Compact representation (8000 samples → 51×128 = 6528 values)
 2. Perceptually meaningful (matches human hearing)
 3. Works well with CNNs (treat as "image")
 4. Standard in audio ML (proven approach)

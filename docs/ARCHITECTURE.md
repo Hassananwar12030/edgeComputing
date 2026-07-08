@@ -180,9 +180,9 @@ Server:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      FUSION MODEL (~2M params)                       │
+│                FUSION MODEL (~1.33M params, ~390K trainable)         │
 │                                                                      │
-│  Vision Input (224×224×3)      Audio Input (49×128×1)               │
+│  Vision Input (224×224×3)      Audio Input (51×128×1)               │
 │         │                              │                             │
 │         ▼                              ▼                             │
 │  ┌─────────────────┐           ┌─────────────────┐                  │
