@@ -204,10 +204,13 @@ def main() -> int:
     if server_proc.poll() is None:
         print("  sending SIGTERM to server")
         server_proc.terminate()
+        # Grace period must cover a full training round: if the last client
+        # batch tips the pool over the final trigger, the server is inside
+        # model.fit() when SIGTERM lands and needs ~30-60s to finish it.
         try:
-            server_proc.wait(timeout=15.0)
+            server_proc.wait(timeout=120.0)
         except subprocess.TimeoutExpired:
-            print("  server didn't exit in 15s, killing")
+            print("  server didn't exit in 120s, killing")
             server_proc.kill()
             server_proc.wait()
 

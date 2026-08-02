@@ -15,7 +15,9 @@
       "Bash(.venv/bin/python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['src/experiments/strategy_a_client.py','src/experiments/strategy_a_server.py']]; print\\('syntax OK'\\)\")",
       "Bash(/opt/homebrew/sbin/mosquitto -c configs/mosquitto.conf -v)",
       "Bash(.venv/bin/python scripts/run_strategy_a.py --max-samples 100 --stream-rate-ms 100 --num-rounds 2 --buffer-size 50 --train-trigger-samples 100 --client-timeout 300)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(nc -z localhost 1883)",
+      "Bash(.venv/bin/python scripts/run_strategy_a.py --max-samples 5000 --stream-rate-ms 500 --num-rounds 10 --buffer-size 500 --train-trigger-samples 1000)"
     ]
   }
 }
