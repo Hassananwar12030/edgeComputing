@@ -174,6 +174,22 @@ Server:
 
 ---
 
+## Open design note — fusion-era uploads for A/B (2026-08-02, not yet built)
+
+The data flows above cover training the *audio* model. Training the full
+*fusion* model server-side (Strategies A/B) also requires the vision input,
+which the current flows never ship. Shipping raw frames would break the
+privacy/bandwidth story. Proposed resolution, to revisit when fusion training
+starts:
+
+- Run frozen MobileNetV3 on the Pi; upload its 256-dim feature vector
+  instead of the frame (small, not reversible to an image).
+- Label still produced on-Pi by YOLO at capture time, as today.
+- Per-sample upload becomes: (raw audio | spectrogram, vision_fv[256], label).
+- Strategy C is unaffected (all inputs stay on-device).
+
+---
+
 ## Model Architecture
 
 ### Fusion Model

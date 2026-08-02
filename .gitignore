@@ -86,7 +86,8 @@ models/*.pt
 # trained Keras models — reproducible via training scripts
 models/*.keras
 models/checkpoints/
-experiments/
+# experiment run outputs (root-level only; src/experiments/ is code and stays tracked)
+/experiments/
 # numpy archive caches — reproducible
 *.npz
 *.csv
