@@ -76,7 +76,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--confidence", type=float, default=0.5)
     p.add_argument("--model", default="yolov8n.pt",
                    help="YOLO weights (auto-downloaded if absent)")
-    p.add_argument("--run-dir", default="experiments/pi_capture")
+    p.add_argument("--run-dir", default="results/pi_capture")
     p.add_argument("--save-evidence", action="store_true",
                    help="DEMO/DEBUG ONLY: additionally save frame.jpg + "
                         "audio.wav + label for every labeled tick, so humans "

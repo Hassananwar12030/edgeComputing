@@ -12,8 +12,8 @@ chosen strategy. Generalizes run_strategy_a.py with a --strategy flag:
                     edge-side STFT, spectrograms on the wire)
 
 Both write the same server.json / client_*.json schema, into
-experiments/strategy_{a,b}/run_{timestamp}/ — so results sit side by side
-for the A-vs-B comparison.
+results/strategy_{a,b,c}/run_{timestamp}/ — so results sit side by side
+for the A-vs-B-vs-C comparison.
 
 Prerequisites: mosquitto running (configs/mosquitto.conf), venv, and
 data/urbansound8k/cache.npz.
@@ -116,7 +116,7 @@ def main() -> int:
 
     # Run directory
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = REPO_ROOT / "experiments" / f"strategy_{args.strategy}" / f"run_{ts}"
+    run_dir = REPO_ROOT / "results" / f"strategy_{args.strategy}" / f"run_{ts}"
     run_dir.mkdir(parents=True, exist_ok=True)
     print(f"Strategy {args.strategy.upper()} — run directory: {run_dir}")
 

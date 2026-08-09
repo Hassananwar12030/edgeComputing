@@ -87,7 +87,7 @@ models/*.pt
 models/*.keras
 models/checkpoints/
 # experiment run outputs (root-level only; src/experiments/ is code and stays tracked)
-/experiments/
+/results/
 # numpy archive caches — reproducible
 *.npz
 *.csv
@@ -115,3 +115,4 @@ tensorboard_logs/
 *.mp4
 *.wav
 *.mp3
+.claude/
