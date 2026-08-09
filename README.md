@@ -109,8 +109,8 @@ Naming: **`src/experiments/` = code**, **`results/` = run outputs** — distinct
 
 Strategies A, B, C implemented and measured. Next: model-freshness experiment
 (time-to-adapt to unseen classes), non-IID experiment, Pi-hardware validation
-of C, and the audio+vision fusion model (deferred extension). See
-[docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
+of C, and the audio+vision fusion model (deferred extension). Full status &
+roadmap in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §10.
 
 ## Supervision
 
