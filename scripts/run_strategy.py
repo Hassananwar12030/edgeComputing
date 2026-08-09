@@ -45,8 +45,9 @@ VENV_PYTHON = REPO_ROOT / ".venv" / "bin" / "python"
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--strategy", choices=["a", "b"], required=True,
-                   help="a=centralized (raw audio), b=hybrid (spectrograms)")
+    p.add_argument("--strategy", choices=["a", "b", "c"], required=True,
+                   help="a=centralized (raw audio), b=hybrid (spectrograms), "
+                        "c=federated (FedAvg over weights)")
     p.add_argument("--broker", default="localhost")
     p.add_argument("--port", type=int, default=1883)
     p.add_argument("--max-samples", type=int, default=5000,
@@ -60,6 +61,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--train-trigger-samples", type=int, default=1000,
                    help="Server-side buffer size that triggers a training round")
     p.add_argument("--epochs-per-round", type=int, default=1)
+    p.add_argument("--local-lr", type=float, default=1e-3,
+                   help="Strategy C only: local learning rate for FedAvg clients")
     p.add_argument("--server-ready-timeout", type=float, default=60.0,
                    help="Max seconds to wait for server to subscribe before starting clients")
     p.add_argument("--client-timeout", type=float, default=None,
@@ -135,6 +138,8 @@ def main() -> int:
         "--epochs-per-round", str(args.epochs_per_round),
         "--run-dir", str(run_dir),
     ]
+    if args.strategy == "c":
+        server_cmd += ["--local-lr", str(args.local_lr)]  # A/B servers don't accept it
     server_proc = spawn("server", server_cmd, run_dir / "server.log")
 
     # Wait for server to actually subscribe to the data topic before starting
