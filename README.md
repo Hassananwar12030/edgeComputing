@@ -6,6 +6,10 @@ We compare three learning strategies for a system that learns to recognize
 objects *by their sound*, so a robot can still perceive when the camera fails
 (fog, darkness).
 
+> **New to AI?** Start with [docs/PRIMER.md](docs/PRIMER.md) — a from-zero
+> walkthrough (what AI/training/supervision mean → our strategy → simulation →
+> results → the fusion extension).
+
 ## The core idea
 
 A frozen, pre-trained **YOLOv8** looks at the camera and whatever it detects
