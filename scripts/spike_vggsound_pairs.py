@@ -156,6 +156,16 @@ def main() -> int:
             for yt_id, start in pool:
                 if kept >= args.per_class or attempts >= args.max_attempts_per_class:
                     break
+                # Resume: pair already harvested in a previous run → keep, no attempt
+                jpg = out_dir / f"{yt_id}.jpg"
+                wav = out_dir / f"{yt_id}.wav"
+                if jpg.exists() and wav.exists():
+                    kept += 1
+                    kept_all.append({"yt_id": yt_id, "start": start,
+                                     "vgg_class": vgg_cls, "coco_class": coco_cls,
+                                     "frame": str(jpg.relative_to(REPO_ROOT)),
+                                     "audio": str(wav.relative_to(REPO_ROOT))})
+                    continue
                 attempts += 1
                 mp4 = Path(tmp) / f"{yt_id}.mp4"
                 reason = download_segment(yt_id, start, mp4, args.timeout)
