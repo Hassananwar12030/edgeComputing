@@ -167,7 +167,7 @@ params. Built and forward-pass verified; not trained (needs paired data).
 (`src/server/aggregation/fedavg.py`), *not* Flower. Rationale: keeping the
 transport identical across A/B/C makes bandwidth directly comparable — Flower's
 gRPC would introduce a confound. Flower is noted as the production-grade path;
-the `flower_*.py` scaffolds are unwired.
+the Flower scaffolds were removed in favor of the MQTT implementation.
 
 **Serialization:** `np.savez_compressed` (+ `zlib` for A/B data batches). Byte
 counts are recorded independently by sender and receiver and cross-checked.

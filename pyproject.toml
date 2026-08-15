@@ -41,9 +41,8 @@ server = [
     "librosa>=0.10.0",
     "matplotlib>=3.7.0",
 ]
-# Note: the project uses hand-rolled FedAvg over MQTT, not Flower. The
-# src/**/flower_*.py scaffolds are unwired future work; `pip install flwr`
-# only if you pursue the Flower path.
+# Note: the project uses hand-rolled FedAvg over MQTT, not Flower.
+# `pip install flwr` manually only if you ever pursue the Flower path.
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",

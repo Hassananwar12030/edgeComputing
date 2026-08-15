@@ -116,3 +116,4 @@ tensorboard_logs/
 *.wav
 *.mp3
 .claude/
+*.egg-info/
