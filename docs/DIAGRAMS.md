@@ -19,6 +19,9 @@ The system as measured: two edge nodes, MQTT broker, one server. The three
 strategies differ only in where STFT/training run and what crosses the wire.
 
 ```mermaid
+---
+title: "System architecture (current) — AudioCNN, strategies A/B/C"
+---
 flowchart TB
     subgraph EDGE_A["Edge node A (Pi 5 / simulated)"]
         camA["Camera frame"] --> yoloA["YOLOv8 (frozen)<br/>label = 'car'"]
@@ -63,6 +66,9 @@ numbers, not reversible to an image) alongside the audio; C is unchanged
 (everything stays local).
 
 ```mermaid
+---
+title: "System architecture (planned) — FusionModel, frames never leave the edge"
+---
 flowchart TB
     subgraph EDGE["Edge node (Pi 5)"]
         cam["Camera frame"] --> yolo["YOLOv8 (frozen)<br/>label"]
@@ -96,6 +102,9 @@ flowchart TB
 One full cycle. The only A-vs-B difference is *who* runs STFT (highlighted).
 
 ```mermaid
+---
+title: "Strategies A/B — edge uploads data, server trains"
+---
 sequenceDiagram
     autonumber
     participant CA as Client A (edge)
@@ -103,6 +112,7 @@ sequenceDiagram
     participant BR as MQTT broker
     participant SV as Server
 
+    Note over CA,SV: A ships RAW AUDIO (server does STFT); B ships SPECTROGRAMS (edge does STFT). Everything else is identical.
     Note over SV: warm-start AudioCNN,<br/>subscribe thesis/edge/+/data
     SV->>SV: print "Server ready"
 
@@ -123,8 +133,9 @@ sequenceDiagram
         SV->>SV: model.fit on full pool (1 epoch)
         SV->>SV: evaluate on held-out fold-10
         SV->>BR: broadcast weights<br/>thesis/server/model/global
-        BR-->>CA: global model
-        BR-->>CB: global model
+        BR--)CA: updated model (optional)
+        BR--)CB: updated model (optional)
+        Note over CA,CB: In A/B the edge does NOT train, so it does not need weights for learning. The broadcast exists because (1) a deployed edge uses the updated model for ON-DEVICE INFERENCE, and (2) it is counted as download traffic so A/B/C bandwidth is compared on equal terms. The simulation clients do not consume it.
     end
 
     Note over CA,SV: repeats until num_rounds reached
@@ -138,6 +149,9 @@ Round-synchronized: the server never trains, only averages. Data never leaves
 the clients; only weights travel (both directions).
 
 ```mermaid
+---
+title: "Strategy C — federated rounds: clients train, server averages (FedAvg)"
+---
 sequenceDiagram
     autonumber
     participant CA as Client A (edge)
@@ -145,6 +159,7 @@ sequenceDiagram
     participant BR as MQTT broker
     participant SV as Server
 
+    Note over CA,SV: Data NEVER leaves the clients — only model weights travel, in both directions.
     Note over CA,CB: build LOCAL dataset once<br/>(own audio -> STFT, stays on device)
     Note over SV: warm-start global model,<br/>subscribe thesis/edge/+/weights
 
@@ -179,10 +194,13 @@ The real-hardware demo: same downstream pipeline as the simulation; only the
 sample source differs. Frames are discarded on-device.
 
 ```mermaid
+---
+title: "Live Pi capture (hardware track) — frames are discarded on-device"
+---
 sequenceDiagram
     autonumber
-    participant HW as Webcam + USB mic
-    participant PI as Pi client<br/>(strategy_a_pi_client)
+    participant HW as Webcam and USB mic
+    participant PI as Pi client (strategy_a_pi_client)
     participant BR as MQTT broker (laptop)
     participant SV as Server (laptop)
 
