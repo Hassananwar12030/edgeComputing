@@ -30,7 +30,7 @@ Verify the pipeline pieces (optional, fast):
 .venv/bin/python scripts/test_yolo.py          # labeler
 .venv/bin/python scripts/test_stft.py          # audio → (51,128)
 .venv/bin/python scripts/test_audio_cnn.py     # model builds + forward pass
-.venv/bin/python scripts/test_fusion_model.py  # fusion model builds (deferred)
+.venv/bin/python scripts/test_fusion_model.py  # fusion model builds
 ```
 
 ---
