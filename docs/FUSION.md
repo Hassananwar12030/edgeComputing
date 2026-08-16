@@ -49,8 +49,13 @@ one sense fails (camera in darkness), the other still carries it.
 
 **Vision branch.** MobileNetV3-Small, a small image network pre-trained on
 millions of photos, **frozen** (we never train it). Give it a frame, it
-outputs a **feature vector**: 256 numbers that summarize *what's visible* —
-not a label, a compact description. Think of it as the model's eye.
+outputs a raw **feature vector** of 576 numbers describing *what's visible* —
+generic ImageNet features, not tuned to our classes. A small trainable
+**vision projection** layer then squeezes those 576 into 256 task-adapted
+numbers. Why it exists: the frozen backbone can never adapt, so the
+projection is the vision side's only learnable adapter — and it balances the
+merge (256 vision vs 128 audio) so the ear isn't drowned out by sheer width.
+Together, backbone + projection are the model's eye.
 
 **Audio branch.** The same CNN architecture as our AudioCNN. The audio is
 first turned into a spectrogram (PRIMER §11), and the branch compresses it
@@ -185,16 +190,82 @@ street scenes would be kinder to audio.
 
 ---
 
-# Part 5 — F6 (done) and what remains
+# Part 5 — Strategies with the fusion model (F6)
 
-## 5.1 F6 — strategies with the fusion model (DONE)
+## 5.1 What changes when strategies enter
 
-The strategy comparison now runs with the fusion model in the training slot
-(`run_strategy.py --strategy fb|fc`). Key design: the edge runs the frozen
-backbone and ships its **feature vector** (576 floats ≈ 1.1 KB — not
-reversible into an image) instead of the frame; the server trains an
-FV-input fusion model *proven equivalent* to the image model (100%
-prediction agreement — `prepare_fusion_fv.py` checks this every time).
+Everything up to Part 4 was **plain training**: all data and the whole model
+on one machine. F6 asks the thesis question again for the fusion model —
+**where should its ongoing training run** — which means splitting the model's
+parts between edge and server. One rule decides every placement:
+
+> **Frozen parts can sit on the edge. Trainable parts must live wherever
+> training happens** (training must be able to update them).
+
+The fusion model's four parts, by that rule: the **backbone** (frozen → can
+run on the edge and ship its FV), **STFT** (fixed math, not a model → edge),
+and the three trainable parts — **vision projection, audio branch, fusion
+head** — which follow the training.
+
+One more constant: **frames never leave the device.** The edge ships the
+backbone's 576-float FV (~1 KB, not reversible into an image) instead. The
+server-side model that accepts FVs directly is proven prediction-identical
+to the image model (100% agreement — `prepare_fusion_fv.py` verifies it).
+
+## 5.2 FB — hybrid fusion (server trains)
+
+Training is on the server → all trainable parts are on the server. The edge
+runs only the frozen/fixed parts and ships their outputs per sample:
+
+```
+EDGE (per sample)                      SERVER (training)
+─────────────────                      ─────────────────────────────
+frame ──► backbone (frozen)            receives (spectrogram, FV, label)
+              │                                 │            │
+              ▼                                 ▼            ▼
+        FV (576 floats, ~1 KB) ──┐      audio branch   vision projection
+                                 │      spec → 128     FV → 256
+mic ──► STFT ──► spectrogram ────┼──►        └─── concat 384 ───┘
+              (~13 KB)           │                    ▼
+label ───────────────────────────┘              fusion head
+                                                     ▼
+   ships: spec + FV + label                 output → loss → TRAIN
+   (~10 KB/sample compressed)               (updates branch+proj+head)
+```
+
+Note what the FB edge does NOT have: the audio branch. It ships the
+spectrogram (a preprocessing output), not an audio feature vector — because
+the thing that turns spectrograms into features is trainable, so it must be
+on the server. Only the vision side ships a computed vector, and only
+because that branch is frozen.
+
+## 5.3 FC — federated fusion (edges train)
+
+Flip the rule: training happens on the edge, so **every edge holds a full
+copy of all trainable parts** — projection, audio branch, and fusion head.
+No data ships in either direction; only weights commute:
+
+```
+        SERVER                                EDGE A          EDGE B
+────────────────────────                 ──────────────  ──────────────
+global model weights ──── broadcast ──►  full local copy of the model:
+                                         projection + audio branch + head
+                                         (+ frozen backbone for its own FVs)
+                                                │               │
+                                         train on OWN data  train on OWN data
+                                         (its spec+FV+label stays local)
+                                                │               │
+        ◄──── weights only (~1.4 MB) ───────────┘───────────────┘
+FedAvg:  w_global = (n_A/n)·w_A + (n_B/n)·w_B
+new global model ──── broadcast ──►  ... next round ...
+```
+
+The fusion head therefore exists in three places during FC: training copies
+on nodes A and B, and the averaged global copy on the server. Each round the
+two trained heads (and branches, and projections) are averaged into the new
+global model.
+
+## 5.4 What we measured
 
 | | FB (hybrid-fusion) | FC (federated-fusion) |
 |---|---|---|
@@ -202,21 +273,26 @@ prediction agreement — `prepare_fusion_fv.py` checks this every time).
 | Upload/node | 14.78 MB | 13.76 MB (10 rounds) |
 | Clean accuracy | dips, recovers to 0.837 | stable 0.84–0.88 |
 | Blackout accuracy | **rises 0.52 → 0.67** | 0.59–0.68 |
+| Server compute | trains (2.6→7.3 s/rd) | averages (0.2 s/rd) |
 
-What we observed: (1) the graceful-degradation property **survives — and
+Observations: (1) the graceful-degradation property **survives — and
 improves under — continued strategy training** in both placements; (2)
 federated cost scales with **model size, not data** (1.41 MB/round = 3.5×
-the audio model's 400 KB, matching the parameter ratio); (3) the FV format
-keeps frames on-device at ~10 KB/sample vs ~30–50 KB for JPEG frames.
+the audio model's 400 KB, matching the trainable-parameter ratio); at this
+data volume FB and FC totals are similar — at 10× the data FB grows ~10×
+while FC is unchanged; (3) the FV wire format keeps frames on-device at
+~10 KB/sample vs ~30–50 KB for JPEG frames, at zero accuracy cost.
 (A-with-fusion was skipped deliberately: raw-audio shipping is already fully
 characterized by the original Strategy A.)
 
-## 5.2 F7 — Pi feasibility (remaining)
+Run them: `run_strategy.py --strategy fb|fc` (after `prepare_fusion_fv.py`).
 
- Time on the real Pi 5: MobileNetV3 feature
+## 5.5 F7 — Pi feasibility (remaining)
+
+Measure on the real Pi 5: MobileNetV3 feature
 extraction per frame, and one epoch of fusion training on a small buffer.
 Produces a timings table answering "can the fusion-era edge run on the
-hardware?"
+hardware?" — a table of timings, no new concepts.
 
 Outputs to know: `models/fusion_*.keras`,
 `data/vggsound/fusion_training_metrics.json`,
