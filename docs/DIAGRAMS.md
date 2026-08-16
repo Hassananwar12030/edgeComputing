@@ -229,6 +229,20 @@ sequenceDiagram
 
 ---
 
+### Exported figures (for the report)
+
+Rendered PNGs live in [figures/](figures/):
+
+| # | File | Diagram |
+|---|---|---|
+| 1 | `figures/01_architecture_current_audiocnn.png` | §1 architecture (current) |
+| 2 | `figures/02_architecture_fusion_planned.png` | §2 architecture (fusion era) |
+| 3 | `figures/03_sequence_strategies_ab.png` | §3 sequence A/B |
+| 4 | `figures/04_sequence_strategy_c_fedavg.png` | §4 sequence C (FedAvg) |
+| 5 | `figures/05_sequence_live_pi_capture.png` | §5 sequence live Pi |
+
+Re-export after editing a diagram so source and PNG stay in sync.
+
 ### Regenerating / exporting
 
 - GitHub renders these blocks natively.
