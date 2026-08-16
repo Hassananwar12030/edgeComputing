@@ -345,7 +345,13 @@ Full list: [RESULTS.md](RESULTS.md) §8.
 
 ---
 
-# Part 9 — The extension: fusion model (future)
+# Part 9 — The extension: fusion model
+
+> **Update:** this extension has since been BUILT and measured — the full
+> story (data harvesting, a instructive failure, the fix, and the results
+> proving "audio helps when vision fails") is in **[FUSION.md](FUSION.md)**,
+> written as the sequel to this primer. The section below is the original
+> plan, kept for context.
 
 ## 31. What it is, why deferred, what it will show
 So far the model uses **audio only**. The **fusion model** combines *two*
