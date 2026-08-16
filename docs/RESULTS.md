@@ -171,6 +171,32 @@ Reproduce: `train_fusion.py` (baselines, `--modality-dropout`,
 `--audio-warmstart`), `eval_fusion_blackout.py`. Raw numbers:
 `data/vggsound/fusion_blackout_results.json`.
 
+### F6 — strategies with the fusion model
+
+The edge ships the frozen backbone's 576-float **feature vector** (1.1 KB,
+not reversible to an image) instead of the frame; the server trains an
+FV-input fusion model proven equivalent to the image model (100% prediction
+agreement). Both runs warm-start from the 0.847/0.551 model and log
+blackout accuracy per round:
+
+| | FB (hybrid-fusion) | FC (federated-fusion) |
+|---|---|---|
+| What ships | spectrogram + FV (10.3 KB/sample) | weights only (1.41 MB/round) |
+| Upload/node | 14.78 MB (1,502 samples) | 13.76 MB (10 rounds) |
+| Clean acc | dips, recovers to 0.837 | stable 0.84–0.88 |
+| Blackout acc | **0.52 → 0.67 over rounds** | **0.59–0.68** |
+| Server compute | trains, 2.6→7.3 s/rd | averages, 0.2 s/rd |
+
+Findings: (1) **graceful degradation survives — and improves under —
+continued strategy training** (blackout ~0.55 baseline → ~0.67); (2)
+**federated cost scales with model size, not data**: 1.41 MB/round vs
+audio-C's 400 KB ≈ the 3.5× trainable-parameter ratio (390K vs 111K); at
+this data volume FB and FC totals are similar, at 10× data FB grows ~10×
+while FC is unchanged; (3) the FV wire format costs ~10 KB/sample vs
+~30–50 KB for JPEG frames, with frames never leaving the device.
+Reproduce: `run_strategy.py --strategy fb|fc` (needs `prepare_fusion_fv.py`
+first).
+
 ---
 
 ## 9. Limitations & honesty notes

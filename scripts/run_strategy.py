@@ -45,9 +45,12 @@ VENV_PYTHON = REPO_ROOT / ".venv" / "bin" / "python"
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--strategy", choices=["a", "b", "c"], required=True,
+    p.add_argument("--strategy", choices=["a", "b", "c", "fb", "fc"],
+                   required=True,
                    help="a=centralized (raw audio), b=hybrid (spectrograms), "
-                        "c=federated (FedAvg over weights)")
+                        "c=federated (FedAvg) — audio model; "
+                        "fb/fc = same with the FUSION model (F6: paired "
+                        "VGGSound data, edge ships/keeps the vision FV)")
     p.add_argument("--broker", default="localhost")
     p.add_argument("--port", type=int, default=1883)
     p.add_argument("--max-samples", type=int, default=5000,
@@ -138,7 +141,7 @@ def main() -> int:
         "--epochs-per-round", str(args.epochs_per_round),
         "--run-dir", str(run_dir),
     ]
-    if args.strategy == "c":
+    if args.strategy in ("c", "fc"):
         server_cmd += ["--local-lr", str(args.local_lr)]  # A/B servers don't accept it
     server_proc = spawn("server", server_cmd, run_dir / "server.log")
 
