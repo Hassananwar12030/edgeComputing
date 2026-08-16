@@ -92,6 +92,23 @@ Smoke test any strategy first (~1 min):
 | `--epochs-per-round` | — | server fit epochs | **local** epochs per client |
 | `--local-lr` | client local learning rate | n/a | **use 5e-5** (1e-3 destabilizes) |
 
+### Fusion-era strategies (F6 — needs the VGGSound paired cache)
+
+```bash
+# one-time: precompute vision FVs + build/verify the FV-fusion model
+.venv/bin/python scripts/prepare_fusion_fv.py
+
+# FB — hybrid with fusion (edge ships spectrogram + FV)
+.venv/bin/python scripts/run_strategy.py --strategy fb \
+    --buffer-size 250 --train-trigger-samples 500 --num-rounds 6 --stream-rate-ms 50
+
+# FC — federated fusion (weights only; gentle local LR)
+.venv/bin/python scripts/run_strategy.py --strategy fc --num-rounds 10 --local-lr 1e-4
+```
+
+Servers log clean AND blackout accuracy per round. Prereqs: paired cache +
+trained fusion model (see FUSION.md Parts 2–3).
+
 ### Reproduce the Strategy C local-LR sweep
 
 ```bash

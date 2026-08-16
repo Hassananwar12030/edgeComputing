@@ -185,18 +185,35 @@ street scenes would be kinder to audio.
 
 ---
 
-# Part 5 — What remains (yours to run)
+# Part 5 — F6 (done) and what remains
 
-**F6 — strategies A/B/C with the fusion model.** The strategy comparison
-(PRIMER Part 5) so far trained the audio-only model. F6 puts the FusionModel
-in the training slot. One design decision is already made: in A/B the edge
-ships the **vision feature vector** (256 numbers) instead of the raw frame —
-smaller, and not reversible into an image, so frames still never leave the
-device. Strategy C is unchanged (all data stays local). Expected shape: same
-trade-off as before (bandwidth ↓, edge compute ↑ toward C), with a bigger
-model.
+## 5.1 F6 — strategies with the fusion model (DONE)
 
-**F7 — Pi feasibility.** Time on the real Pi 5: MobileNetV3 feature
+The strategy comparison now runs with the fusion model in the training slot
+(`run_strategy.py --strategy fb|fc`). Key design: the edge runs the frozen
+backbone and ships its **feature vector** (576 floats ≈ 1.1 KB — not
+reversible into an image) instead of the frame; the server trains an
+FV-input fusion model *proven equivalent* to the image model (100%
+prediction agreement — `prepare_fusion_fv.py` checks this every time).
+
+| | FB (hybrid-fusion) | FC (federated-fusion) |
+|---|---|---|
+| What ships | spectrogram + FV (10.3 KB/sample) | weights only (1.41 MB/round) |
+| Upload/node | 14.78 MB | 13.76 MB (10 rounds) |
+| Clean accuracy | dips, recovers to 0.837 | stable 0.84–0.88 |
+| Blackout accuracy | **rises 0.52 → 0.67** | 0.59–0.68 |
+
+What we observed: (1) the graceful-degradation property **survives — and
+improves under — continued strategy training** in both placements; (2)
+federated cost scales with **model size, not data** (1.41 MB/round = 3.5×
+the audio model's 400 KB, matching the parameter ratio); (3) the FV format
+keeps frames on-device at ~10 KB/sample vs ~30–50 KB for JPEG frames.
+(A-with-fusion was skipped deliberately: raw-audio shipping is already fully
+characterized by the original Strategy A.)
+
+## 5.2 F7 — Pi feasibility (remaining)
+
+ Time on the real Pi 5: MobileNetV3 feature
 extraction per frame, and one epoch of fusion training on a small buffer.
 Produces a timings table answering "can the fusion-era edge run on the
 hardware?"

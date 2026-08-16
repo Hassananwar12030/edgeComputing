@@ -143,9 +143,13 @@ Baseline: 70.97% test accuracy on UrbanSound8K fold-10 holdout
 labeler. ~47 ms/frame on a Mac, ~430 ms/frame on the Pi 5 CPU. Outputs a class
 name + confidence; the frame is discarded after.
 
-**FusionModel** (`src/server/training/models/fusion_model.py`) — deferred.
-MobileNetV3-Small (frozen vision) + AudioCNN (audio) + fusion head, ~1.33M
-params. Built and forward-pass verified; not trained (needs paired data).
+**FusionModel** (`src/server/training/models/fusion_model.py`) — trained on
+VGGSound pairs: 0.847 clean / 0.551 blackout (recipe: audio warm-start +
+50% modality dropout — see RESULTS.md §8). MobileNetV3-Small (frozen) +
+AudioCNN branch + fusion head, ~1.33M params. **FVFusionModel** is its
+wire-format twin for strategies: vision input = the frozen backbone's
+576-float feature vector (computed on the edge; frames never ship), proven
+prediction-identical to the image model.
 
 ---
 
@@ -217,7 +221,8 @@ A validated live on one Pi.
    time-to-adapt per strategy (the thesis centerpiece).
 2. Non-IID experiment — skewed class split across nodes; FedProx.
 3. Pi-hardware validation of C (real federated training across two Pis).
-4. FusionModel (audio+vision) — deferred extension needing paired data.
+4. Fusion track: F1–F6 done (paired data, trained fusion model, blackout
+   result, FB/FC strategies) — F7 Pi feasibility timing remains.
 
 Repository layout and per-file roles: see [README.md](../README.md).
 Code execution: [CODE_FLOW.md](CODE_FLOW.md).
