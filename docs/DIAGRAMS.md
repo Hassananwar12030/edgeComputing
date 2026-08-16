@@ -112,7 +112,7 @@ sequenceDiagram
     participant BR as MQTT broker
     participant SV as Server
 
-    Note over CA,SV: A ships RAW AUDIO (server does STFT); B ships SPECTROGRAMS (edge does STFT). Everything else is identical.
+    Note over CA,SV: A ships RAW AUDIO (server does STFT).<br/>B ships SPECTROGRAMS (edge does STFT).<br/>Everything else is identical.
     Note over SV: warm-start AudioCNN,<br/>subscribe thesis/edge/+/data
     SV->>SV: print "Server ready"
 
@@ -129,7 +129,7 @@ sequenceDiagram
     SV->>SV: decompress<br/>(A only: STFT on server)
     SV->>SV: add to training pool
 
-    alt pool >= trigger (e.g. 1000)
+    alt pool reaches trigger (e.g. 1000)
         SV->>SV: model.fit on full pool (1 epoch)
         SV->>SV: evaluate on held-out fold-10
         SV->>BR: broadcast weights<br/>thesis/server/model/global
@@ -211,8 +211,8 @@ sequenceDiagram
         PI->>HW: grab frame (mid-recording)
         HW-->>PI: audio + frame
         PI->>PI: YOLO on frame (~430 ms on Pi 5)
-        alt object detected (conf >= 0.5)
-            PI->>PI: sample = (audio, label, confidence)<br/>-> buffer; FRAME DISCARDED
+        alt object detected (confidence 0.5 or higher)
+            PI->>PI: sample = (audio, label, confidence)<br/>-> buffer. FRAME DISCARDED
         else nothing detected
             PI->>PI: tick skipped<br/>(no label -> no sample)
         end
@@ -224,7 +224,7 @@ sequenceDiagram
         SV->>SV: count bytes, unpack,<br/>label-check vs class list
     end
 
-    Note over PI,SV: byte counts match sender/receiver;<br/>images never crossed the network
+    Note over PI,SV: byte counts match sender and receiver.<br/>Images never crossed the network
 ```
 
 ---
