@@ -137,7 +137,43 @@ tell a real Pi from a simulated one.
 
 ---
 
-## 8. Limitations & honesty notes
+## 8. Fusion track (F3–F5): audio + vision, and darkness
+
+Trained on 973 VGGSound pairs (5 classes: bird/car/cat/dog/motorcycle;
+3,008 train samples, 98-clip test set, chance = 0.20). "Blackout" = every
+frame replaced by black (fog/darkness/dead camera); audio unchanged.
+
+| Model | Clean | Blackout | Behavior |
+|---|---|---|---|
+| vision-only | 0.806 | 0.204 | collapses to chance |
+| naive fusion | 0.745 | 0.173 | worse than vision alone; ignores audio |
+| fusion + dropout (0.3/0.5) | 0.745 | ~0.21 | dropout alone does NOT fix it |
+| **fusion + dropout 0.5 + audio-warmstart** | **0.847** | **0.551** | best clean AND holds the audio floor |
+| audio-only (floor) | 0.561 | 0.561 | unaffected — the reference |
+
+**Findings:**
+- **Fusion beats either modality alone** (0.847 > 0.806 vision, > 0.561 audio) —
+  but only with the right training recipe.
+- **"Audio helps when vision fails," measured:** in blackout, vision-only is
+  random (0.204) while the fused model keeps 0.551 ≈ the full audio floor.
+- **The recipe is the result:** naive fusion ignores audio (modality gradient
+  starvation — a from-scratch audio branch cannot compete with a pretrained
+  vision branch: its features stay near-constant and the head wires it out).
+  Modality dropout alone cannot revive a starved branch. Warm-starting the
+  audio branch from the trained audio-only model, then applying 50% modality
+  dropout, cures both problems at once.
+- Diagnosis method worth noting: identical-accuracy runs flagged a dead
+  branch; probes (constant blackout predictions, zero audio-sensitivity,
+  near-zero feature variance) located it. Small test set (98 clips) → treat
+  point estimates as ±~5%.
+
+Reproduce: `train_fusion.py` (baselines, `--modality-dropout`,
+`--audio-warmstart`), `eval_fusion_blackout.py`. Raw numbers:
+`data/vggsound/fusion_blackout_results.json`.
+
+---
+
+## 9. Limitations & honesty notes
 
 - **B's bandwidth win is 26%, not the estimated ~66%** (§3).
 - **Naïve FedAvg destabilizes**; C needs a tuned-down local LR (§4).
@@ -152,7 +188,7 @@ tell a real Pi from a simulated one.
 
 ---
 
-## 9. Where the numbers come from
+## 10. Where the numbers come from
 
 ```
 results/strategy_a/run_*/server.json     A: rounds[], per_client_bytes_total
