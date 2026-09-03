@@ -65,6 +65,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--train-trigger-samples", type=int, default=1000)
     p.add_argument("--epochs-per-round", type=int, default=1)
     p.add_argument("--run-dir", required=True)
+    p.add_argument("--live-dataset", default=None,
+                   help="Enrolled dataset from pi_enroll.py. Replaces the "
+                        "UrbanSound8K vocabulary and test set with the "
+                        "classes captured live, and resizes the model head "
+                        "to match.")
     return p.parse_args()
 
 
@@ -74,25 +79,42 @@ class StrategyAServer:
         self.run_dir = Path(args.run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"Loading eval cache: {CACHE}", flush=True)
-        data = np.load(CACHE, allow_pickle=True)
-        self.X_test, self.y_test = data["X_test"], data["y_test"]
-        self.classes = [str(c) for c in data["classes"]]
-        self.cls_to_idx = {c: i for i, c in enumerate(self.classes)}
-
         # Same STFT parameters as prepare_urbansound8k.py, so streamed samples
         # land in the same feature space the test set was built in.
         self.stft = STFTProcessor(sample_rate=16000, n_fft=512, hop_length=160,
                                   n_mels=128, window_length=400, normalize=True)
 
-        if WARM_START.exists():
-            print(f"Warm-starting from {WARM_START}", flush=True)
-            self.model = tf.keras.models.load_model(WARM_START)
-            self.warm_started = True
+        if args.live_dataset:
+            # Live track: the vocabulary is whatever pi_enroll.py detected, so
+            # both the class list and the test set come from the enrolled
+            # dataset rather than UrbanSound8K.
+            from src.experiments.pi_live import build_live_model, load_dataset
+            print(f"Live dataset: {args.live_dataset}", flush=True)
+            ds = load_dataset(Path(args.live_dataset))
+            self.classes = ds["classes"]
+            self.X_test = self.stft.process_batch(
+                ds["audio_test"])[..., np.newaxis].astype(np.float32)
+            self.y_test = ds["y_test"]
+            self.model, self.warm_started = build_live_model(len(self.classes))
+            print(f"Live vocabulary {self.classes}, "
+                  f"test set {self.X_test.shape}", flush=True)
         else:
-            print("No pre-trained weights found — training from scratch", flush=True)
-            self.model = AudioCNN(num_classes=len(self.classes))
-            self.warm_started = False
+            print(f"Loading eval cache: {CACHE}", flush=True)
+            data = np.load(CACHE, allow_pickle=True)
+            self.X_test, self.y_test = data["X_test"], data["y_test"]
+            self.classes = [str(c) for c in data["classes"]]
+
+            if WARM_START.exists():
+                print(f"Warm-starting from {WARM_START}", flush=True)
+                self.model = tf.keras.models.load_model(WARM_START)
+                self.warm_started = True
+            else:
+                print("No pre-trained weights found — training from scratch",
+                      flush=True)
+                self.model = AudioCNN(num_classes=len(self.classes))
+                self.warm_started = False
+
+        self.cls_to_idx = {c: i for i, c in enumerate(self.classes)}
         # load_model restores compile state; a fresh AudioCNN has none
         if getattr(self.model, "optimizer", None) is None:
             self.model.compile(

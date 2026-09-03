@@ -74,6 +74,16 @@ def parse_args() -> argparse.Namespace:
                    help="LOCAL learning rate clients use (sent to clients "
                         "each round; lower stabilizes FedAvg on a warm-started model)")
     p.add_argument("--run-dir", required=True)
+    p.add_argument("--num-clients", type=int, default=N_CLIENTS,
+                   help="Clients that must report before FedAvg aggregates a "
+                        "round. Defaults to 2 (the science runs); set 1 when "
+                        "demoing with a single Pi, or the server waits "
+                        "forever for a second node that never arrives.")
+    p.add_argument("--live-dataset", default=None,
+                   help="Enrolled dataset from pi_enroll.py. Replaces the "
+                        "UrbanSound8K vocabulary and test set with the "
+                        "classes captured live, and resizes the global model "
+                        "head to match the Pi clients.")
     return p.parse_args()
 
 
@@ -99,19 +109,39 @@ class StrategyCServer:
         self.run_dir = Path(args.run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"Loading eval cache: {CACHE}", flush=True)
-        data = np.load(CACHE, allow_pickle=True)
-        self.X_test, self.y_test = data["X_test"], data["y_test"]
-        self.classes = [str(c) for c in data["classes"]]
-
-        if WARM_START.exists():
-            print(f"Warm-starting global model from {WARM_START}", flush=True)
-            self.model = tf.keras.models.load_model(WARM_START)
-            self.warm_started = True
+        if args.live_dataset:
+            # Live track: the global model must have the same head width as
+            # the Pi clients' local models, or set_weights() on the client
+            # fails. Both sides build it from the enrolled class list.
+            from src.edge.processing.stft import STFTProcessor
+            from src.experiments.pi_live import build_live_model, load_dataset
+            print(f"Live dataset: {args.live_dataset}", flush=True)
+            ds = load_dataset(Path(args.live_dataset))
+            self.classes = ds["classes"]
+            eval_stft = STFTProcessor(sample_rate=16000, n_fft=512,
+                                      hop_length=160, n_mels=128,
+                                      window_length=400, normalize=True)
+            self.X_test = eval_stft.process_batch(
+                ds["audio_test"])[..., np.newaxis].astype(np.float32)
+            self.y_test = ds["y_test"]
+            self.model, self.warm_started = build_live_model(len(self.classes))
+            print(f"Live vocabulary {self.classes}, "
+                  f"test set {self.X_test.shape}", flush=True)
         else:
-            print("No pre-trained weights — global model from scratch", flush=True)
-            self.model = AudioCNN(num_classes=len(self.classes))
-            self.warm_started = False
+            print(f"Loading eval cache: {CACHE}", flush=True)
+            data = np.load(CACHE, allow_pickle=True)
+            self.X_test, self.y_test = data["X_test"], data["y_test"]
+            self.classes = [str(c) for c in data["classes"]]
+
+            if WARM_START.exists():
+                print(f"Warm-starting global model from {WARM_START}", flush=True)
+                self.model = tf.keras.models.load_model(WARM_START)
+                self.warm_started = True
+            else:
+                print("No pre-trained weights — global model from scratch",
+                      flush=True)
+                self.model = AudioCNN(num_classes=len(self.classes))
+                self.warm_started = False
         if getattr(self.model, "optimizer", None) is None:
             self.model.compile(optimizer=tf.keras.optimizers.Adam(LR),
                                loss="sparse_categorical_crossentropy",
@@ -217,7 +247,7 @@ class StrategyCServer:
             except queue.Empty:
                 continue
             self.handle_weights(topic, payload)
-            if len(self.pending) >= N_CLIENTS:
+            if len(self.pending) >= self.args.num_clients:
                 self.aggregate_round()
                 done = len(self.rounds) >= self.args.num_rounds
                 self.broadcast_global(

@@ -77,6 +77,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--model", default="yolov8n.pt",
                    help="YOLO weights (auto-downloaded if absent)")
     p.add_argument("--run-dir", default="results/pi_capture")
+    p.add_argument("--dataset", default=None,
+                   help="Replay an enrolled dataset from pi_enroll.py instead "
+                        "of capturing live. Strategies A/B/C must replay the "
+                        "SAME dataset for their bandwidth numbers to be "
+                        "comparable — different samples, different bytes.")
+    p.add_argument("--shard", default=None,
+                   help="'i/n' — send only this node's slice (replay mode)")
     p.add_argument("--save-evidence", action="store_true",
                    help="DEMO/DEBUG ONLY: additionally save frame.jpg + "
                         "audio.wav + label for every labeled tick, so humans "
@@ -112,10 +119,103 @@ class MicRecorder:
         return np.clip(audio * 32767.0, -32768, 32767).astype(np.int16)
 
 
+def run_replay(args, run_dir: Path) -> int:
+    """Replay an enrolled dataset as raw audio — Strategy A's defining trait.
+
+    Same samples as the B and C live clients, so the only thing that differs
+    across the three reports is what each strategy puts on the wire.
+    """
+    from src.experiments.pi_live import load_dataset
+
+    ds = load_dataset(Path(args.dataset))
+    audio, y, classes = ds["audio_train"], ds["y_train"], ds["classes"]
+
+    if args.shard:
+        i, n = (int(v) for v in args.shard.split("/"))
+        audio, y = audio[i::n], y[i::n]
+        print(f"[pi-{args.node_id}] shard {args.shard}: {len(audio)} samples",
+              flush=True)
+
+    print(f"[pi-{args.node_id}] dataset: {len(audio)} samples, "
+          f"classes={classes}", flush=True)
+
+    mqtt_client = MQTTClient(broker=args.broker, port=args.port,
+                             node_id=args.node_id)
+    if not mqtt_client.connect():
+        print(f"ERROR: cannot reach broker {args.broker}:{args.port}",
+              file=sys.stderr)
+        return 1
+
+    strategy = CentralizedStrategy(
+        node_id=args.node_id,
+        mqtt_client=mqtt_client,
+        config={"buffer_size": args.buffer_size},
+    )
+
+    stop = {"flag": False}
+    signal.signal(signal.SIGINT, lambda *_: stop.update(flag=True))
+    signal.signal(signal.SIGTERM, lambda *_: stop.update(flag=True))
+
+    label_counts: Counter = Counter()
+    t_start = time.perf_counter()
+    print(f"[pi-{args.node_id}] streaming raw audio (Ctrl-C to stop)...",
+          flush=True)
+
+    for i in range(len(audio)):
+        if stop["flag"]:
+            break
+        label = classes[int(y[i])]
+        label_counts[label] += 1
+        strategy.on_sample({
+            "audio": audio[i],
+            "label": label,
+            "timestamp": time.time(),
+            "confidence": 1.0,
+        })
+        if strategy.should_trigger():
+            strategy.trigger()
+            m = strategy.get_metrics()
+            print(f"[pi-{args.node_id}] batch {m['batches_uploaded']} uploaded "
+                  f"({m['bytes_uploaded'] / 1024:.0f} KB total)", flush=True)
+
+    if strategy._buffer:
+        leftover = strategy._buffer.copy()
+        strategy._buffer.clear()
+        print(f"[pi-{args.node_id}] flushing final partial batch "
+              f"({len(leftover)} samples)", flush=True)
+        strategy.execute(leftover)
+
+    time.sleep(2.0)  # drain QoS 1 deliveries
+    mqtt_client.disconnect()
+
+    metrics = strategy.get_metrics()
+    result = {
+        "node_id": args.node_id,
+        "strategy": "A_centralized",
+        "mode": "live_vocabulary_replay",
+        "dataset": str(args.dataset),
+        "classes": classes,
+        "wall_seconds": round(time.perf_counter() - t_start, 1),
+        "samples_sent": int(len(audio)),
+        "batches_uploaded": metrics["batches_uploaded"],
+        "bytes_uploaded": metrics["bytes_uploaded"],
+        "label_counts": dict(label_counts),
+    }
+    out = run_dir / f"pi_client_{args.node_id}.json"
+    out.write_text(json.dumps(result, indent=2))
+    print(f"[pi-{args.node_id}] done: {len(audio)} samples, "
+          f"{metrics['bytes_uploaded'] / 1024:.0f} KB uploaded -> {out}",
+          flush=True)
+    return 0
+
+
 def main() -> int:
     args = parse_args()
     run_dir = Path(args.run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.dataset:
+        return run_replay(args, run_dir)
 
     print(f"[pi-{args.node_id}] opening camera {args.camera_index}...", flush=True)
     cam = cv2.VideoCapture(args.camera_index)

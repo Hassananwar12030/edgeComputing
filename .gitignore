@@ -118,3 +118,7 @@ tensorboard_logs/
 .claude/
 *.egg-info/
 data/vggsound/
+
+# raw sensor dumps pulled off the Pi edge node — regenerable via scripts/pull_from_pi.sh
+data/pi_captures/images/
+data/pi_captures/audio/
