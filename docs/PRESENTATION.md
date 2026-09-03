@@ -26,6 +26,7 @@ The five acts:
 | 3 | 4 | **Strategy A** — raw audio leaves the Pi, server trains |
 | 4 | 4 | **Strategy B** — STFT moves to the Pi, bandwidth drops |
 | 5 | 6 | **Strategy C** — training moves to the Pi, only weights leave |
+| 6 | 4 | **Live inference** — the trained model names sounds, says `unknown`, asks to be retrained |
 | — | 2 | The comparison table, pulled from the three runs |
 
 **The one sentence:** *the same data, captured once, processed at three
@@ -209,6 +210,7 @@ audio**. No human labels anything.
     --audio-device 0 \
     --min-samples 30 \
     --confidence 0.5 \
+    --ignore person \
     --save-evidence
 ```
 
@@ -219,6 +221,7 @@ What each flag does:
 | `--audio-device 0` | The real USB mic. **Not 1** — that's the webcam's mic |
 | `--min-samples 30` | Classes with fewer samples are dropped when the vocabulary freezes, so a passer-by detected twice doesn't become a class |
 | `--confidence 0.5` | Below this YOLO detection threshold the tick is skipped — never guessed |
+| `--ignore person` | **Essential.** YOLO takes the highest-confidence detection, and you standing in frame scores ~0.9 against a held-up object's ~0.6 — without this every class collapses to `person`. Add `,tv` when enrolling from a screen |
 | `--save-evidence` | Saves frame + audio + label per tick so the examiner can audit what YOLO actually saw |
 
 Each tick: a 500 ms recording opens, a frame is grabbed **inside** that
@@ -261,11 +264,57 @@ The servers need it for the class list and the held-out test set.
 **Terminal 4:**
 
 ```bash
-scp pi1:~/thesis/edge/edgeComputing/results/live/live_dataset.npz /tmp/live_dataset.npz
+scp pi1:~/thesis/edge/edgeComputing/results/live/live_dataset.npz \
+    data/pi_captures/live_dataset.npz
 ```
 
 > If enrollment produced fewer than 2 classes it exits with an error and
 > tells you why. Enroll again, or lower `--min-samples`.
+
+### Show the evidence — this is where provenance gets proved
+
+Pull the audit trail and open it **before running any strategy**. The
+examiner's natural question is "where did those labels come from?", and it
+arrives now, not at the end.
+
+```bash
+rsync -az pi1:~/thesis/edge/edgeComputing/results/live/evidence_<TIMESTAMP>/ \
+    data/pi_captures/evidence/
+open data/pi_captures/evidence/
+```
+
+Each labelled tick is a pair — `tick0120_car.jpg` and `tick0120_car.wav`:
+the frame YOLO read, and the audio it labelled, captured in the same
+half-second window.
+
+> **Say:** here is every sample the system kept, with the picture that
+> named it. Nobody typed a label. Sort by filename and you can audit any
+> one of them.
+
+Worth pointing at the classes that were **dropped**:
+
+```
+55 person  40 car  33 cell_phone     <- kept
+17 traffic_light  6 bird  5 tv  2 teddy_bear  1 stop_sign  1 scissors   <- dropped
+```
+
+> **Say:** it recognised nine things and kept three. The rest fell below
+> the evidence threshold and were discarded rather than becoming
+> unreliable classes.
+
+### One dataset, three strategies
+
+This single file now feeds all three acts:
+
+```
+                  |--> Strategy A   ships raw audio
+live_dataset.npz  |--> Strategy B   ships spectrograms
+   (96 train)     |--> Strategy C   ships weights only
+```
+
+Same samples, same labels, same server-side training. The only variable is
+**where the work happens**. Enrolling separately per strategy would change
+the data underneath the comparison and the byte counts would mean nothing.
 
 ---
 
@@ -276,22 +325,28 @@ scp pi1:~/thesis/edge/edgeComputing/results/live/live_dataset.npz /tmp/live_data
 ```bash
 .venv/bin/python -m src.experiments.strategy_a_server \
     --broker localhost \
-    --num-rounds 2 \
-    --train-trigger-samples 60 \
-    --live-dataset /tmp/live_dataset.npz \
+    --num-rounds 3 \
+    --train-trigger-samples 30 \
+    --epochs-per-round 10 \
+    --batch-size 8 \
+    --live-dataset data/pi_captures/live_dataset.npz \
+    --save-model results/demo/trained.keras \
     --run-dir results/demo/strategy_a
 ```
 
 | Flag | Effect |
 |---|---|
 | `--live-dataset` | Replaces the UrbanSound8K vocabulary with the enrolled classes and **resizes the model head** to match |
-| `--train-trigger-samples 60` | Train once 60 samples have pooled — small so rounds happen while you talk |
+| `--train-trigger-samples 30` | Train once 30 samples have pooled — well below your ~96 enrolled, so you get several rounds |
+| `--batch-size 8` | **This one matters.** The default 32 gives ~1 gradient step per epoch on a 30-sample pool, and accuracy never leaves chance |
+| `--epochs-per-round 10` | ~100 live samples need more passes than the thousands UrbanSound8K provides |
+| `--save-model` | Writes the trained model to disk so Act 6 can use it. Without it the model is discarded |
 | `--num-rounds 2` | Stop after two training rounds |
 
 Expected startup:
 
 ```
-Live dataset: /tmp/live_dataset.npz
+Live dataset: data/pi_captures/live_dataset.npz
 warm-started 7 layers from audio_cnn_urbansound8k.keras (new 2-way head)
 Live vocabulary ['keyboard', 'scissors'], test set (29, 51, 128, 1)
 Baseline test accuracy before any round: 0.517
@@ -348,9 +403,12 @@ Stop the A server (**Ctrl-C**). **Terminal 2:**
 ```bash
 .venv/bin/python -m src.experiments.strategy_b_server \
     --broker localhost \
-    --num-rounds 2 \
-    --train-trigger-samples 60 \
-    --live-dataset /tmp/live_dataset.npz \
+    --num-rounds 3 \
+    --train-trigger-samples 30 \
+    --epochs-per-round 10 \
+    --batch-size 8 \
+    --live-dataset data/pi_captures/live_dataset.npz \
+    --save-model results/demo/trained.keras \
     --run-dir results/demo/strategy_b
 ```
 
@@ -395,8 +453,9 @@ Stop the B server. **Terminal 2:**
     --broker localhost \
     --num-rounds 3 \
     --num-clients 1 \
-    --epochs-per-round 2 \
-    --live-dataset /tmp/live_dataset.npz \
+    --epochs-per-round 8 \
+    --live-dataset data/pi_captures/live_dataset.npz \
+    --save-model results/demo/trained.keras \
     --run-dir results/demo/strategy_c
 ```
 
@@ -459,6 +518,88 @@ regime a real sensor network lives in.
 
 ---
 
+## 7b. Act 6 — use the model you just trained (4 min)
+
+Everything so far produced numbers. This is where the system *does
+something*. Copy the model the server just saved onto the Pi:
+
+```bash
+scp results/demo/trained.keras results/demo/trained.classes.json \
+    pi1:~/thesis/edge/edgeComputing/results/demo/
+```
+
+**Terminal 3 (Pi):**
+
+```bash
+.venv/bin/python -m src.experiments.pi_infer \
+    --model results/demo/trained.keras \
+    --audio-device 0 \
+    --threshold 0.60 \
+    --novelty-ticks 5
+```
+
+It listens through the microphone and names what it hears, once a second:
+
+```
+EAR (audio model)           EYE (YOLO)            note
+------------------------------------------------------------------------
+person 0.90                 -                       ##################
+person 0.97                 -                       ###################
+unknown 0.46                -                     below 0.60 — refusing to guess
+```
+
+### Three things to demonstrate, in this order
+
+**1. It works.** Make a sound from one of the enrolled classes. It names it
+from audio alone.
+
+> **Say:** the camera is not involved in this decision. It was only ever
+> used to create the labels. This is the audio model working on its own —
+> which is the point, because in fog or darkness that is all you have.
+
+**2. It knows what it doesn't know.** Make a sound it never learned —
+whistle, tap the desk, clap.
+
+> **Say:** a softmax classifier is closed-set: without a reject option it
+> is forced to pick one of its three classes and will often do so
+> confidently. Below the threshold it declines instead. That is a
+> deliberate guard, not a limitation I overlooked.
+
+**3. It asks to be retrained.** Keep the unknown sound going for five
+consecutive ticks:
+
+```
+------------------------------------------------------------------------
+  NEW SOUND: 5 unknowns in a row, nothing recognisable in view.
+  Out of vocabulary ['car', 'cell phone', 'person'].
+------------------------------------------------------------------------
+```
+
+> **Say:** the device has noticed it is out of its depth. In deployment
+> this is what triggers enrollment for a new class — and federated
+> learning is what makes acting on it cheap, because a round costs 405 KB
+> and nine seconds rather than shipping the audio to a data centre and
+> waiting for a nightly job.
+
+That closes the loop the thesis opens with.
+
+### Why there is no YOLO column
+
+Vision is off by default and the `EYE` column shows `-`. Not a design
+choice: **TensorFlow and PyTorch segfault in the same process on this Pi**
+— an OpenMP clash on aarch64 that survives both import reordering and
+`OMP_NUM_THREADS=1`.
+
+It costs nothing, because nothing in the pipeline needs both at once —
+enrollment runs YOLO with no TensorFlow, inference runs TensorFlow with no
+YOLO. If asked, it is a real and quotable edge-deployment constraint:
+frameworks that coexist on a laptop do not always coexist on the device.
+
+> If the examiner asks to see vision and audio side by side, run
+> enrollment in a second SSH window — separate processes are fine.
+
+---
+
 ## 8. Bringing the results back
 
 ```bash
@@ -499,12 +640,8 @@ C_federated          1215 KB      27.4 s  model weights only
 **Hand the examiner this table.** It is the thesis in six numbers: cost
 moves from the network to the edge device as privacy improves.
 
-The evidence gallery is also worth showing — it proves the labels were
-machine-generated:
-
-```bash
-open data/pi_captures/results/live/evidence_*/
-```
+If you skipped the evidence gallery in Act 2, it is still there — but show
+it there rather than here, where provenance is the question being asked.
 
 ---
 
@@ -519,6 +656,8 @@ open data/pi_captures/results/live/evidence_*/
 | `no such device` on the mic | Card renumbered after reboot | `arecord -l`, then adjust `--audio-device` |
 | Blurry frames | Lens film / focus | `./scripts/pi_focus_check.sh`; sharpness should exceed ~20 |
 | Server trains on 0 samples | `skipped_unknown_labels` climbing | Client and server are using different datasets — both must point at the same enrolled file |
+| `Segmentation fault` on the Pi | TensorFlow + PyTorch in one process | Never combine them; `pi_infer` runs audio-only by default |
+| Accuracy stuck at chance | `--batch-size` too large for a small pool | Use `--batch-size 8 --epochs-per-round 10` |
 | **No network at the venue** | — | Phone hotspot, join both devices, re-read the laptop IP. Or ethernet Pi→laptop with link-local addressing |
 
 ### The escape hatch
@@ -584,6 +723,7 @@ ipconfig getifaddr en0                                    # the IP the Pi needs
 .venv/bin/python -m src.experiments.strategy_a_pi_client --node-id A --broker <IP> --dataset results/live/live_dataset.npz
 .venv/bin/python -m src.experiments.strategy_b_pi_client --node-id A --broker <IP> --dataset results/live/live_dataset.npz
 .venv/bin/python -m src.experiments.strategy_c_pi_client --node-id A --broker <IP> --dataset results/live/live_dataset.npz
+.venv/bin/python -m src.experiments.pi_infer --model results/demo/trained.keras --audio-device 0
 ```
 
 ### Verified environment

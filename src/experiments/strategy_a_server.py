@@ -65,6 +65,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--train-trigger-samples", type=int, default=1000)
     p.add_argument("--epochs-per-round", type=int, default=1)
     p.add_argument("--run-dir", required=True)
+    p.add_argument("--batch-size", type=int, default=BATCH_SIZE,
+                   help="Gradient batch size. The 32 default suits the "
+                        "thousands of UrbanSound8K samples; a live enrolled "
+                        "set of ~100 gives only 3 steps per epoch at that "
+                        "size, so the model barely moves. Use 8 for live "
+                        "runs.")
+    p.add_argument("--save-model", default=None,
+                   help="Write the trained model here (.keras) plus a "
+                        "<name>.classes.json sidecar, so pi_infer.py can "
+                        "load it for live inference. Without this the "
+                        "trained model is discarded at shutdown.")
     p.add_argument("--live-dataset", default=None,
                    help="Enrolled dataset from pi_enroll.py. Replaces the "
                         "UrbanSound8K vocabulary and test set with the "
@@ -205,7 +216,7 @@ class StrategyAServer:
 
         t0 = time.perf_counter()
         self.model.fit(X, y, epochs=self.args.epochs_per_round,
-                       batch_size=BATCH_SIZE, verbose=2)
+                       batch_size=self.args.batch_size, verbose=2)
         train_time = time.perf_counter() - t0
 
         _, test_acc = self.model.evaluate(self.X_test, self.y_test, verbose=0)
@@ -253,6 +264,25 @@ class StrategyAServer:
 
     # ---------- main loop ----------
 
+    def save_model(self) -> None:
+        """Persist the trained model so it can actually be USED afterwards.
+
+        Without this the demo trains a classifier and then discards it —
+        weights are broadcast over MQTT and never land on disk. pi_infer.py
+        loads what this writes. The class list rides alongside in a sidecar
+        json, because a .keras file records the head width but not what the
+        outputs mean.
+        """
+        if not self.args.save_model:
+            return
+        out = Path(self.args.save_model)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        self.model.save(out)
+        out.with_suffix(".classes.json").write_text(
+            json.dumps({"classes": self.classes}, indent=2))
+        print(f"Saved trained model -> {out} "
+              f"({len(self.classes)} classes: {self.classes})", flush=True)
+
     def run(self) -> int:
         if not self.connect():
             print(f"ERROR: cannot connect/subscribe to broker "
@@ -282,6 +312,7 @@ class StrategyAServer:
             self.ingest(topic, payload)
 
         self.write_report()
+        self.save_model()
         self.mqtt.disconnect()
         print(f"Server stopped. {len(self.rounds)}/{self.args.num_rounds} rounds, "
               f"{self.pool_count} samples received.", flush=True)

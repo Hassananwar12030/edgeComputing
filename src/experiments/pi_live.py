@@ -207,7 +207,8 @@ def predict_with_unknown(model, X: np.ndarray, classes: list[str],
 
 def enroll(camera_index: int, audio_device: int | None, yolo_model: str,
            confidence: float, min_samples: int, duration_min: float | None,
-           tick_ms: int, stop_flag: dict, evidence_dir: Path | None = None):
+           tick_ms: int, stop_flag: dict, evidence_dir: Path | None = None,
+           ignore: tuple[str, ...] = ()):
     """Capture loop: YOLO names whatever is in frame, the mic supplies the
     audio, and samples accumulate under that name.
 
@@ -215,12 +216,22 @@ def enroll(camera_index: int, audio_device: int | None, yolo_model: str,
     afterwards by dropping classes below `min_samples` — a passer-by
     detected twice should not become a class.
 
+    `ignore` drops labels from consideration entirely. The operator stands
+    in front of the camera to run the thing, and a person at ~0.9 outscores
+    a held-up object at ~0.6 on almost every tick — so without this the
+    enrolled vocabulary is just "person". Ignoring it lets the object win
+    instead of forcing you out of frame.
+
     Prints a live readout every tick so the operator can see what YOLO is
     detecting BEFORE relying on it; enrolling blind is how you discover at
     training time that the object was never recognised.
     """
     import cv2
     from src.edge.processing.vision import VisionProcessor
+
+    ignore_set = {s.strip().lower() for s in ignore if s.strip()}
+    if ignore_set:
+        print(f"[enroll] ignoring labels: {sorted(ignore_set)}", flush=True)
 
     print(f"[enroll] opening camera {camera_index}...", flush=True)
     cam = cv2.VideoCapture(camera_index)
@@ -265,8 +276,12 @@ def enroll(camera_index: int, audio_device: int | None, yolo_model: str,
             continue
 
         y0 = time.perf_counter()
-        label, conf, _ = vision.detect_and_label(
-            cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
+        detections = vision.detect(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
+        if ignore_set:
+            detections = [d for d in detections
+                          if d["class"].lower() not in ignore_set]
+        picked = vision.get_dominant_label(detections)
+        label, conf = picked if picked else (None, 0.0)
         yolo_ms.append((time.perf_counter() - y0) * 1000)
 
         if label is None:

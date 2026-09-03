@@ -59,6 +59,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-samples", type=int, default=30,
                    help="Classes with fewer samples are dropped from the "
                         "vocabulary (a passer-by is not a class)")
+    p.add_argument("--ignore", default="",
+                   help="Comma-separated labels to ignore, e.g. "
+                        "'person,tv'. YOLO picks the highest-confidence "
+                        "detection, so the operator standing in frame "
+                        "outscores the object being enrolled — ignore "
+                        "'person' and the object wins instead.")
     p.add_argument("--tick-ms", type=int, default=1000)
     p.add_argument("--duration-min", type=float, default=None,
                    help="Stop after N minutes (default: run until Ctrl-C)")
@@ -96,6 +102,7 @@ def main() -> int:
         tick_ms=args.tick_ms,
         stop_flag=stop,
         evidence_dir=evidence_dir,
+        ignore=tuple(args.ignore.split(",")) if args.ignore else (),
     )
 
     if not labels:

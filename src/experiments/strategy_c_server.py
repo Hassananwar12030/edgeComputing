@@ -79,6 +79,11 @@ def parse_args() -> argparse.Namespace:
                         "round. Defaults to 2 (the science runs); set 1 when "
                         "demoing with a single Pi, or the server waits "
                         "forever for a second node that never arrives.")
+    p.add_argument("--save-model", default=None,
+                   help="Write the trained model here (.keras) plus a "
+                        "<name>.classes.json sidecar, so pi_infer.py can "
+                        "load it for live inference. Without this the "
+                        "trained model is discarded at shutdown.")
     p.add_argument("--live-dataset", default=None,
                    help="Enrolled dataset from pi_enroll.py. Replaces the "
                         "UrbanSound8K vocabulary and test set with the "
@@ -228,6 +233,25 @@ class StrategyCServer:
         }
         (self.run_dir / "server.json").write_text(json.dumps(report, indent=2))
 
+    def save_model(self) -> None:
+        """Persist the trained model so it can actually be USED afterwards.
+
+        Without this the demo trains a classifier and then discards it —
+        weights are broadcast over MQTT and never land on disk. pi_infer.py
+        loads what this writes. The class list rides alongside in a sidecar
+        json, because a .keras file records the head width but not what the
+        outputs mean.
+        """
+        if not self.args.save_model:
+            return
+        out = Path(self.args.save_model)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        self.model.save(out)
+        out.with_suffix(".classes.json").write_text(
+            json.dumps({"classes": self.classes}, indent=2))
+        print(f"Saved trained model -> {out} "
+              f"({len(self.classes)} classes: {self.classes})", flush=True)
+
     def run(self) -> int:
         if not self.connect():
             print(f"ERROR: cannot connect/subscribe to broker "
@@ -259,6 +283,7 @@ class StrategyCServer:
         self.write_report()
         # Clear the retained global so a later experiment doesn't inherit it.
         self.mqtt.publish(GLOBAL_TOPIC, b"", qos=1, retain=True)
+        self.save_model()
         self.mqtt.disconnect()
         print(f"Server stopped. {len(self.rounds)}/{self.args.num_rounds} rounds.",
               flush=True)
